@@ -281,7 +281,6 @@
 /* ================= 設定と保存（GitHubの非公開リポジトリ） ================= */
 const CFG_KEY = 'souko-config';
 const CACHE_KEY = 'souko-cache';
-const SHELVES = ['気分', 'テーマ', '人', '場所・時代', '技法・形式', '体験'];
 const HOW = { 映画: ['映画館', '名画座', '配信', 'テレビ', 'ソフト', '試写'], 本: ['紙の本', '電子書籍', 'オーディオブック', '図書館'] };
 const WASH = ['#8fb47a', '#2f6f6b', '#8fc3d9', '#c9504a', '#c8a77a', '#5f8f5a', '#e0b64a', '#6fa9b8'];
 
@@ -490,7 +489,7 @@ function drawRecord() {
     <label>メモ・感想</label><textarea oninput="F.text=this.value">${esc(F.text)}</textarea>`}
     <label>引き出し（いくつでも）</label>
     <div>${db.drawers.map(d => `<span class="chip ${F.drawers.includes(d.id) ? 'on' : ''}" onclick="toggleF('drawers','${d.id}')">${esc(d.name)}</span>`).join('')}<span class="chip ghost" onclick="document.getElementById('nd').classList.toggle('on')">＋ 新しい引き出し</span></div>
-    <div class="newdrawer" id="nd"><input id="nd-name" placeholder="例：雨の日に観たい"><select id="nd-shelf">${SHELVES.map(s => `<option>${s}</option>`).join('')}</select><button class="btn teal" style="padding:0 12px" onclick="addDrawerInline()">追加</button></div>
+    <div class="newdrawer" id="nd"><input id="nd-name" placeholder="例：雨の日に観たい、吉村公三郎"><button class="btn teal" style="padding:0 12px" onclick="addDrawerInline()">追加</button></div>
     <label>つながる作品</label>
     <div>${db.works.filter(o => o.id !== F.workId).map(o => `<span class="chip ${F.links.includes(o.id) ? 'on' : ''}" onclick="toggleF('links','${o.id}')">${esc(o.title)}${o.kind === '本' ? '（本）' : ''}</span>`).join('') || '<span class="muted">ほかの作品を記録するとここに出ます</span>'}</div>
     ${F.links.length ? `<label>つながりメモ</label><input value="${esc(F.note)}" oninput="F.note=this.value" placeholder="なぜつながる？（同じ監督、原作と映画、似た感触…）">` : ''}
@@ -501,7 +500,7 @@ function setF(k, v, redraw) { F[k] = v; if (k === 'kind') { F.how = ''; F.result
 function toggleF(k, v) { F[k] = F[k].includes(v) ? F[k].filter(x => x !== v) : [...F[k], v]; setF(k, F[k], 1); }
 function addDrawerInline() {
   const name = $('#nd-name').value.trim(); if (!name) return;
-  const d = { id: uid('d'), name, shelf: $('#nd-shelf').value, desc: '' };
+  const d = { id: uid('d'), name, shelf: '', desc: '' };
   (F.newDrawers ||= []).push(d); db.drawers.push(d); F.drawers.push(d.id); setF('drawers', F.drawers, 1);
 }
 async function saveRecord() {
@@ -624,17 +623,16 @@ $('#s-q').oninput = () => {
   const q = $('#s-q').value.trim();
   $('#s-result').innerHTML = q ? `<div class="grid-posters" style="margin-bottom:20px">${db.works.filter(w => (w.title + (w.creator || '')).includes(q)).map(gp).join('') || '<span class="muted">見つかりません</span>'}</div>` : '';
 };
+const shelves = () => [...new Set(db.drawers.map(d => d.shelf).filter(Boolean))];
 const gp = w => `<div class="gp" onclick="showWork('${w.id}')">${posterHTML(w, 'fill')}<div class="t">${esc(w.title)}</div></div>`;
 function renderStore() {
   const nf = db.works.filter(w => w.kind === '映画').length;
   $('#s-count').textContent = `映画${nf}・本${db.works.length - nf}・引き出し${db.drawers.length}`;
   let h = '';
-  for (const s of SHELVES) {
-    const ds = db.drawers.filter(d => d.shelf === s);
-    h += `<div class="shelf"><div class="shelf-name"><span>${s}の棚</span></div><div class="drawers">`;
-    h += ds.map(d => `<div class="drawer" onclick="openDrawer('${d.id}')"><span class="ct">${db.works.filter(w => w.drawers.includes(d.id)).length}</span><div class="nm">${esc(d.name)}</div>${d.desc ? `<div class="ds">${esc(d.desc)}</div>` : ''}<div class="handle"></div></div>`).join('');
-    h += `<div class="drawer new" onclick="editDrawer(null,'${s}')">＋ 引き出し</div></div></div>`;
-  }
+  // 棚は任意。名前を付けた棚ごとにまとめ、棚なしの引き出しは先頭にそのまま並べる
+  const box = d => `<div class="drawer" onclick="openDrawer('${d.id}')"><span class="ct">${db.works.filter(w => w.drawers.includes(d.id)).length}</span><div class="nm">${esc(d.name)}</div>${d.desc ? `<div class="ds">${esc(d.desc)}</div>` : ''}<div class="handle"></div></div>`;
+  h += `<div class="shelf"><div class="drawers">${db.drawers.filter(d => !d.shelf).map(box).join('')}<div class="drawer new" onclick="editDrawer(null)">＋ 引き出し</div></div></div>`;
+  for (const s of shelves()) h += `<div class="shelf"><div class="shelf-name"><span>${esc(s)}</span></div><div class="drawers">${db.drawers.filter(d => d.shelf === s).map(box).join('')}</div></div>`;
   const loose = db.works.filter(w => !w.drawers.length);
   if (loose.length) h += `<div class="shelf"><div class="shelf-name"><span>まだ引き出しに入っていない</span></div><div class="grid-posters">${loose.map(gp).join('')}</div></div>`;
   $('#s-shelves').innerHTML = h;
@@ -642,20 +640,21 @@ function renderStore() {
 function openDrawer(id) {
   const d = drawer(id); if (!d) return;
   const ws = db.works.filter(w => w.drawers.includes(id));
-  openSheet(`<div class="eyebrow">${esc(d.shelf)}の棚</div><h3 style="font-size:24px;margin:4px 0 6px">${esc(d.name)}</h3>
+  openSheet(`${d.shelf ? `<div class="eyebrow">${esc(d.shelf)}</div>` : ''}<h3 style="font-size:24px;margin:4px 0 6px">${esc(d.name)}</h3>
     <div class="muted" style="margin-bottom:16px">${esc(d.desc) || ''}　<span style="color:var(--red);cursor:pointer" onclick="editDrawer('${id}')">編集</span></div>
     <div class="grid-posters">${ws.map(gp).join('') || '<div class="muted">まだ空っぽです</div>'}</div>`);
 }
-function editDrawer(id, shelf) {
-  const d = id ? drawer(id) : { name: '', desc: '', shelf };
+function editDrawer(id) {
+  const d = id ? drawer(id) : { name: '', desc: '', shelf: '' };
   openSheet(`<div class="form"><h3>${id ? '引き出しを編集' : '引き出しを作る'}</h3>
     <label>名前</label><input id="ed-name" value="${esc(d.name)}" placeholder="例：ラストで救われる">
     <label>どんな作品が入る？</label><input id="ed-desc" value="${esc(d.desc)}" placeholder="自分の言葉で">
-    <label>棚</label><select id="ed-shelf">${SHELVES.map(s => `<option ${s === d.shelf ? 'selected' : ''}>${s}</option>`).join('')}</select>
+    <label>棚（なくてOK。引き出しが増えてきたら、まとめたいときに）</label><input id="ed-shelf" value="${esc(d.shelf)}" list="ed-shelves" placeholder="例：監督、スタジオ、気分">
+    <datalist id="ed-shelves">${shelves().map(s => `<option value="${esc(s)}">`).join('')}</datalist>
     <div class="btns">${id ? `<button class="btn" onclick="delDrawer('${id}')">削除</button>` : '<button class="btn" onclick="closeSheet()">やめる</button>'}<button class="btn teal" onclick="saveDrawer('${id || ''}')">保存</button></div></div>`);
 }
 async function saveDrawer(id) {
-  const v = { name: $('#ed-name').value.trim(), desc: $('#ed-desc').value.trim(), shelf: $('#ed-shelf').value };
+  const v = { name: $('#ed-name').value.trim(), desc: $('#ed-desc').value.trim(), shelf: $('#ed-shelf').value.trim() };
   if (!v.name) return;
   closeSheet();
   await commit(d => { if (id) Object.assign(d.drawers.find(x => x.id === id), v); else d.drawers.push({ id: uid('d'), ...v }); }, `引き出し：${v.name}`);
