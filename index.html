@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f7f2e6">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="倉庫">
+<meta name="apple-mobile-web-app-title" content="Stubs">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.json">
-<title>映画と本の倉庫</title>
+<title>Stubs — 映画と本の半券</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Maru+Gothic:wght@400;500;700&family=Klee+One:wght@600&display=swap" rel="stylesheet">
@@ -226,7 +226,7 @@
 <div id="app" style="display:none">
   <!-- ホーム -->
   <section class="view on" id="v-home"><div class="wrap">
-    <div class="page-head"><div><div class="eyebrow">SOUKO <span id="h-year"></span></div></div><button class="gear" onclick="openSettings()">⚙︎</button></div>
+    <div class="page-head"><div><div class="eyebrow">STUBS <span id="h-year"></span></div></div><button class="gear" onclick="openSettings()">⚙︎</button></div>
     <div class="hero">
       <div class="sun-blob"></div>
       <div class="row"><div><span class="big" id="h-year-n">0</span><span class="unit">本</span></div><div class="sep"></div><div><span class="mid" id="h-month-n">0</span><span class="unit" style="color:var(--ink)">本</span></div></div>
@@ -853,7 +853,7 @@ window.addEventListener('resize', () => current === 'map' && drawMap());
 
 /* ================= 設定・はじめての接続 ================= */
 function setupHTML(inSheet) {
-  return `${inSheet ? '' : '<div class="eyebrow">SOUKO</div><h2 style="font-size:28px;margin:6px 0 4px">映画と本の倉庫</h2>'}
+  return `${inSheet ? '' : '<div class="eyebrow">FILM &amp; BOOK</div><h2 style="font-size:40px;margin:6px 0 4px;letter-spacing:.04em">Stubs</h2><div class="muted" style="margin-bottom:10px">映画と本の半券</div>'}
   <p class="muted" style="line-height:1.8">記録はGitHubの非公開の場所（<code>${esc(cfg.repo)}</code>）に保存されます。この端末で1回だけ、合言葉（アクセス用キー）を入れてください。</p>
   <ol>
     <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank">キーの作成ページ</a>を開く</li>
