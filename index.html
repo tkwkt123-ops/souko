@@ -114,6 +114,12 @@
   .btn.primary { background: var(--red); border-color: var(--red); color: #fff; grid-column: 1 / -1; }
   .btn.teal { background: var(--teal); border-color: var(--teal); color: #fff; }
   .history { margin-top: 18px; }
+  .ov { margin-top: 12px; font-size: 13px; line-height: 1.8; }
+  .ov summary { display: inline-block; border: 1.5px solid var(--ink); border-radius: 4px; padding: 1px 10px; font-size: 12px; cursor: pointer; list-style: none; }
+  .ov summary::-webkit-details-marker { display: none; }
+  .ov[open] summary { background: var(--ink); color: var(--paper); }
+  .ov div { margin-top: 8px; color: var(--ink); }
+  .ov-open { font-size: 13px; line-height: 1.85; margin-bottom: 18px; padding: 12px 14px; background: var(--card); border-radius: 8px; border: 1px solid var(--line); }
   .history .h { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 13px; cursor: pointer; }
 
   /* カレンダー */
@@ -396,10 +402,11 @@ function showStub(id) {
     <div class="tno" style="margin:4px 0 10px">${isBook ? 'BOOK' : 'TICKET'} ── NO.${String(ticketNo(id)).padStart(3, '0')}</div>
     <div class="ticket">
       <div class="stamp">${isBook ? 'READ' : 'WATCHED'}<b>${s.date.slice(5).replace('-', '.')}</b></div>
-      <div class="top">${posterHTML(w, 'lg')}<div style="padding-right:70px">
+      <div class="top">${kv(w)}<div style="padding-right:70px">
         <div class="ttl" onclick="showWork('${w.id}')" style="cursor:pointer">${esc(w.title)}</div>
-        <div class="sub">${[w.year, w.creator].filter(Boolean).map(esc).join('・')}${n.length > 1 ? `<br>${nth}回目` : ''}</div>
+        <div class="sub">${[w.year, w.creator, w.runtime ? w.runtime + '分' : '', w.genres].filter(Boolean).map(esc).join('・')}${n.length > 1 ? `<br>${nth}回目` : ''}</div>
       </div></div>
+      ${overviewHTML(w)}
       <div class="perf"></div>
       <div class="fields">
         <div><div class="lab">DATE</div>${ymd(s.date)}（${wd(s.date)}）</div>
@@ -435,6 +442,13 @@ async function delStub(id) {
 const SITE = [[/eiga\.com/, '映画.com'], [/filmarks\.com/, 'Filmarks'], [/youtube\.com|youtu\.be/, 'YouTube'], [/themoviedb\.org/, 'TMDB'], [/wikipedia\.org/, 'Wikipedia'], [/amazon\./, 'Amazon'], [/booklog\.jp/, 'ブクログ'], [/bookmeter\.com/, '読書メーター'], [/hanmoto\.com/, '版元ドットコム'], [/books\.google/, 'Google Books'], [/x\.com|twitter\.com/, 'X'], [/instagram\.com/, 'Instagram']];
 const siteName = u => { const m = SITE.find(([re]) => re.test(u)); if (m) return m[1]; try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u; } };
 const cleanUrls = t => t.split(/\s+/).map(x => x.trim()).filter(x => /^https?:\/\//.test(x));
+// KVをタップしたときの行き先：自分で付けた最初のリンク → なければ映画.com／ブクログの検索
+const mainLink = w => w.urls?.[0] || (w.kind === '本' ? `https://booklog.jp/search?keyword=${encodeURIComponent(w.title)}` : `https://eiga.com/search/${encodeURIComponent(w.title)}/`);
+const kv = w => `<a href="${esc(mainLink(w))}" target="_blank" rel="noopener" style="flex:none;text-decoration:none;position:relative">${posterHTML(w, 'lg')}<span style="position:absolute;right:4px;top:4px;background:rgba(255,252,244,.9);border-radius:10px;font-size:10px;padding:0 6px;color:var(--teal)">↗</span></a>`;
+function overviewHTML(w) {
+  if (!w.overview) return '';
+  return `<details class="ov"><summary>${w.kind === '本' ? '内容紹介' : 'あらすじ'}</summary><div>${esc(w.overview)}</div></details>`;
+}
 function linksHTML(w, withSearch) {
   const own = (w.urls || []).map(u => `<a class="chip" href="${esc(u)}" target="_blank" rel="noopener" style="text-decoration:none">${esc(siteName(u))} ↗</a>`).join('');
   if (!withSearch) return own;
@@ -450,12 +464,13 @@ function showWork(id) {
   const w = work(id); if (!w) return;
   const st = stubsOf(id), ln = linked(w);
   openSheet(`
-    <div style="display:flex;gap:16px;margin:6px 0 16px">${posterHTML(w, 'lg')}<div>
+    <div style="display:flex;gap:16px;margin:6px 0 16px">${kv(w)}<div>
       <div class="eyebrow">${w.kind === '本' ? 'BOOK' : 'FILM'}</div>
       <h3 style="font-size:22px;margin:4px 0">${esc(w.title)}</h3>
-      <div class="muted">${[w.year, w.creator].filter(Boolean).map(esc).join('・')}</div>
+      <div class="muted">${[w.year, w.creator, w.runtime ? w.runtime + '分' : '', w.genres].filter(Boolean).map(esc).join('・')}</div>
       <div class="muted" style="margin-top:4px">${st.length}回 ${w.kind === '本' ? '読んだ' : '観た'}</div>
     </div></div>
+    ${w.overview ? `<div class="ov-open">${esc(w.overview)}</div>` : ''}
     <div class="fields"><div class="full"><div class="lab">DRAWERS</div>${w.drawers.map(d => `<span class="chip" onclick="openDrawer('${d}')">${esc(drawer(d)?.name)}</span>`).join('') || '<span class="muted">—</span>'}</div>
     <div class="full"><div class="lab">つながる作品</div>${ln.map(o => `<span class="chip" onclick="showWork('${o.id}')">${esc(o.title)}${o.kind === '本' ? '（本）' : ''}</span>`).join('') || '<span class="muted">—</span>'}</div>
     ${w.note ? `<div class="full"><div class="lab">つながりメモ</div><div class="memo">${esc(w.note)}</div></div>` : ''}
@@ -480,7 +495,7 @@ function openRecord(stubId, workId) {
   F = {
     stubId, workId: w?.id || null,
     kind: w?.kind || '映画', title: w?.title || '', creator: w?.creator || '', year: w?.year || '', poster: w?.poster || '',
-    drawers: [...(w?.drawers || [])], links: [...(w?.links || [])], note: w?.note || '', urls: (w?.urls || []).join('\n'),
+    drawers: [...(w?.drawers || [])], links: [...(w?.links || [])], note: w?.note || '', urls: (w?.urls || []).join('\n'), overview: w?.overview || '', runtime: w?.runtime || '', genres: w?.genres || '',
     date: s?.date || today(), rating: s?.rating || 0, how: s?.how || '', place: s?.place || '', with: s?.with || '', short: s?.short || '', text: s?.text || '',
     results: [],
   };
@@ -498,7 +513,8 @@ function drawRecord() {
     <datalist id="f-titles">${db.works.filter(w => w.kind === F.kind).map(w => `<option value="${esc(w.title)}">`).join('')}</datalist>
     <div id="f-results" class="results">${F.results.map((r, i) => `<div class="r" onclick="pick(${i})">${r.poster ? `<img src="${esc(r.poster)}" loading="lazy">` : posterHTML({ title: r.title, kind: F.kind })}${esc(r.title)}<br><span class="muted">${esc(r.year || '')}</span></div>`).join('')}</div>
     ${F.title || F.poster ? `<div class="picked">${posterHTML({ title: F.title || '？', kind: F.kind, poster: F.poster })}<div style="flex:1"><div class="two"><div><label style="margin-top:0">${isBook ? '著者' : '監督'}</label><input value="${esc(F.creator)}" oninput="F.creator=this.value"></div><div><label style="margin-top:0">${isBook ? '刊行年' : '公開年'}</label><input inputmode="numeric" value="${esc(F.year)}" oninput="F.year=this.value"></div></div>${F.poster ? `<span class="muted" style="cursor:pointer" onclick="setF('poster','',1)">画像を外す</span>` : ''}</div></div>` : ''}
-    <label>リンク（映画.com・Filmarks・予告編など。1行に1つ）</label><textarea style="min-height:64px;font-family:var(--maru);font-size:14px" oninput="F.urls=this.value" placeholder="https://eiga.com/movie/…">${esc(F.urls)}</textarea>
+    <label>${isBook ? '内容紹介' : 'あらすじ'}（表紙を探して選ぶと自動で入ります）</label><textarea style="min-height:64px;font-family:var(--maru);font-size:14px" oninput="F.overview=this.value">${esc(F.overview)}</textarea>
+    <label>リンク（映画.com・Filmarks・予告編など。1行に1つ。1つめがポスターをタップしたときの行き先）</label><textarea style="min-height:64px;font-family:var(--maru);font-size:14px" oninput="F.urls=this.value" placeholder="https://eiga.com/movie/…">${esc(F.urls)}</textarea>
     ${F.workOnly ? '' : `
     <div class="two"><div><label>${isBook ? '読んだ日' : '観た日'}</label><input type="date" value="${F.date}" onchange="F.date=this.value"></div>
     <div><label>評価</label><div class="rate">${[1, 2, 3, 4, 5].map(n => `<span class="${n <= F.rating ? 'on' : ''}" onclick="setF('rating',F.rating===${n}?0:${n},1)">★</span>`).join('')}</div></div></div>
@@ -535,7 +551,7 @@ async function saveRecord() {
     for (const nd of f.newDrawers || []) if (!d.drawers.some(x => x.id === nd.id)) d.drawers.push(nd);
     let w = d.works.find(x => x.id === wid);
     if (!w) { w = { id: wid }; d.works.push(w); }
-    Object.assign(w, { kind: f.kind, title, creator: f.creator.trim(), year: f.year ? Number(f.year) || f.year : '', poster: f.poster, urls: cleanUrls(f.urls), drawers: f.drawers, links: f.links, note: f.links.length ? f.note : '' });
+    Object.assign(w, { kind: f.kind, title, creator: f.creator.trim(), year: f.year ? Number(f.year) || f.year : '', poster: f.poster, urls: cleanUrls(f.urls), overview: f.overview.trim(), runtime: f.runtime, genres: f.genres, drawers: f.drawers, links: f.links, note: f.links.length ? f.note : '' });
     if (f.workOnly) return;
     const stub = { work: wid, date: f.date, rating: f.rating, how: f.how, place: f.place.trim(), with: f.with.trim(), short: f.short.trim(), text: f.text };
     if (f.stubId) Object.assign(d.stubs.find(x => x.id === f.stubId), stub);
@@ -555,7 +571,7 @@ async function lookup() {
       F.results = (j.results || []).slice(0, 12).map(r => ({ id: r.id, title: r.title, year: (r.release_date || '').slice(0, 4), poster: r.poster_path ? 'https://image.tmdb.org/t/p/w342' + r.poster_path : '' }));
     } else {
       const j = await (await fetch(`https://www.googleapis.com/books/v1/volumes?maxResults=12&q=${encodeURIComponent(q)}`)).json();
-      F.results = (j.items || []).map(i => i.volumeInfo).map(v => ({ title: v.title, year: (v.publishedDate || '').slice(0, 4), creator: (v.authors || []).join('、'), link: v.infoLink, poster: (v.imageLinks?.thumbnail || '').replace('http:', 'https:').replace('&edge=curl', '') }));
+      F.results = (j.items || []).map(i => i.volumeInfo).map(v => ({ title: v.title, year: (v.publishedDate || '').slice(0, 4), creator: (v.authors || []).join('、'), link: v.infoLink, overview: v.description || '', poster: (v.imageLinks?.thumbnail || '').replace('http:', 'https:').replace('&edge=curl', '') }));
     }
     if (!F.results.length) toast('見つかりませんでした');
     setF('results', F.results, 1);
@@ -563,13 +579,18 @@ async function lookup() {
 }
 async function pick(i) {
   const r = F.results[i];
-  Object.assign(F, { title: r.title, year: r.year, poster: r.poster, creator: r.creator || F.creator, results: [] });
+  Object.assign(F, { title: r.title, year: r.year, poster: r.poster, creator: r.creator || F.creator, overview: r.overview || F.overview, results: [] });
   const page = r.id ? `https://www.themoviedb.org/movie/${r.id}?language=ja-JP` : r.link;
   if (page && !F.urls.includes(page)) F.urls = [F.urls.trim(), page].filter(Boolean).join('\n');
   if (F.kind === '映画' && r.id && cfg.tmdb) {
     try {
-      const c = await (await fetch(`https://api.themoviedb.org/3/movie/${r.id}/credits?api_key=${cfg.tmdb}&language=ja-JP`)).json();
-      F.creator = (c.crew || []).filter(x => x.job === 'Director').map(x => x.name).join('、') || F.creator;
+      const m = await (await fetch(`https://api.themoviedb.org/3/movie/${r.id}?api_key=${cfg.tmdb}&language=ja-JP&append_to_response=credits`)).json();
+      F.creator = (m.credits?.crew || []).filter(x => x.job === 'Director').map(x => x.name).join('、') || F.creator;
+      F.runtime = m.runtime || '';
+      F.genres = (m.genres || []).map(g => g.name).join('・');
+      F.overview = m.overview || F.overview;
+      // 日本語のあらすじがない作品は英語で
+      if (!m.overview) { const en = await (await fetch(`https://api.themoviedb.org/3/movie/${r.id}?api_key=${cfg.tmdb}&language=en-US`)).json(); F.overview = en.overview || F.overview; }
     } catch (e) {}
   }
   setF('title', F.title, 1);
