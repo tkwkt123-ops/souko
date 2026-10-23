@@ -1,0 +1,9 @@
+{
+  "name": "映画と本の倉庫",
+  "short_name": "倉庫",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f7f2e6",
+  "theme_color": "#f7f2e6",
+  "icons": [{ "src": "icon.png", "sizes": "512x512", "type": "image/png" }]
+}
