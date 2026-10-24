@@ -313,6 +313,7 @@ async function pull() {
   const j = await gh('data.json');
   sha = j.sha;
   db = normalize(JSON.parse(b64dec(j.content)));
+  if (db.settings?.tmdb && cfg.tmdb !== db.settings.tmdb) { cfg.tmdb = db.settings.tmdb; localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
   localStorage.setItem(CACHE_KEY, JSON.stringify(db));
 }
 function normalize(d) {
@@ -862,13 +863,15 @@ function setupHTML(inSheet) {
     <li>Permissions →「Contents」を <b>Read and write</b> に</li>
     <li>一番下の「Generate token」→ 出てきた <code>github_pat_…</code> をコピー</li>
   </ol>
-  <div class="form">
-    <label>GitHubのキー</label><input id="st-token" type="password" value="${esc(cfg.token || '')}" placeholder="github_pat_…" autocomplete="off">
-    <label>映画ポスター用 TMDBのキー（なくても使えます）</label><input id="st-tmdb" value="${esc(cfg.tmdb || '')}" placeholder="API Key (v3)" autocomplete="off">
+  <p class="muted" style="line-height:1.8;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px">💡 Claudeアプリなどの中のリンクから開くと、閉じるたびにキーが消えます。<b>Safariで開くか、ホーム画面のStubsのアイコン</b>から開いてください。「パスワードを保存」と出たら保存しておくと、次からは顔認証で入ります。</p>
+  <form class="form" onsubmit="event.preventDefault();saveSettings()" action="#">
+    <input type="text" name="username" autocomplete="username" value="Stubs" readonly style="position:absolute;opacity:0;height:0;width:0;pointer-events:none" tabindex="-1">
+    <label>GitHubのキー</label><input id="st-token" name="password" type="password" value="${esc(cfg.token || '')}" placeholder="github_pat_…" autocomplete="current-password">
+    <label>映画ポスター用 TMDBのキー（1回入れれば、ほかの端末でも自動で使えます）</label><input id="st-tmdb" value="${esc(cfg.tmdb || '')}" placeholder="API Key (v3)" autocomplete="off">
     <p class="muted" style="line-height:1.7">TMDBのキーは <a href="https://www.themoviedb.org/settings/api" target="_blank">themoviedb.org</a> で無料登録 → 設定 → API で取得できます。本の表紙はキーなしで探せます。</p>
     <details><summary class="muted">保存先を変える</summary><input id="st-repo" value="${esc(cfg.repo)}"></details>
-    <div class="btns"><button class="btn primary" onclick="saveSettings()">つなぐ</button></div>
-  </div>`;
+    <div class="btns"><button class="btn primary" type="submit">つなぐ</button></div>
+  </form>`;
 }
 function openSettings() { openSheet(setupHTML(true)); }
 async function saveSettings() {
@@ -876,8 +879,10 @@ async function saveSettings() {
   const r = $('#st-repo'); if (r && r.value.trim()) cfg.repo = r.value.trim();
   localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
   closeSheet(); await start();
+  if (cfg.tmdb && sha && db.settings?.tmdb !== cfg.tmdb) { const k = cfg.tmdb; await commit(d => { d.settings = { ...(d.settings || {}), tmdb: k }; }, 'TMDBのキーを保存'); }
 }
 async function start() {
+  try { navigator.storage?.persist?.(); } catch (e) {}
   if (!cfg.token) { $('#setup').innerHTML = setupHTML(false); $('#setup').style.display = 'block'; $('#app').style.display = 'none'; return; }
   const cache = localStorage.getItem(CACHE_KEY);
   if (cache) { db = normalize(JSON.parse(cache)); show(); }
