@@ -295,6 +295,14 @@ const WASH = ['#8fb47a', '#2f6f6b', '#8fc3d9', '#c9504a', '#c8a77a', '#5f8f5a', 
 
 let cfg = JSON.parse(localStorage.getItem(CFG_KEY) || '{}');
 cfg.repo = cfg.repo || 'tkwkt123-ops/souko-data';
+// StubsとMarkersは同じ場所（tkwkt123-ops.github.io）なので、GitHubのキーを共有する。どちらかで1回入れれば両方で使える
+const SHARED_TOKEN_KEY = 'tkwkt-github-token';
+function sharedToken() {
+  return localStorage.getItem(SHARED_TOKEN_KEY)
+    || JSON.parse(localStorage.getItem('souko-config') || '{}').token
+    || JSON.parse(localStorage.getItem('markers-config') || '{}').token || '';
+}
+if (!cfg.token) cfg.token = sharedToken();
 let db = { version: 1, works: [], stubs: [], drawers: [] };
 let sha = null;
 
@@ -878,6 +886,7 @@ async function saveSettings() {
   cfg.token = $('#st-token').value.trim(); cfg.tmdb = $('#st-tmdb').value.trim();
   const r = $('#st-repo'); if (r && r.value.trim()) cfg.repo = r.value.trim();
   localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+  if (cfg.token) localStorage.setItem(SHARED_TOKEN_KEY, cfg.token);
   closeSheet(); await start();
   if (cfg.tmdb && sha && db.settings?.tmdb !== cfg.tmdb) { const k = cfg.tmdb; await commit(d => { d.settings = { ...(d.settings || {}), tmdb: k }; }, 'TMDBのキーを保存'); }
 }
@@ -886,7 +895,7 @@ async function start() {
   if (!cfg.token) { $('#setup').innerHTML = setupHTML(false); $('#setup').style.display = 'block'; $('#app').style.display = 'none'; return; }
   const cache = localStorage.getItem(CACHE_KEY);
   if (cache) { db = normalize(JSON.parse(cache)); show(); }
-  try { await pull(); show(); }
+  try { await pull(); localStorage.setItem(SHARED_TOKEN_KEY, cfg.token); show(); }
   catch (e) {
     if (e.status === 401 || e.status === 403 || e.status === 404) { toast('キーが違うか、権限が足りません'); $('#setup').innerHTML = setupHTML(false); $('#setup').style.display = 'block'; $('#app').style.display = 'none'; }
     else toast('オフラインです（前回の内容を表示中）');
